@@ -1,14 +1,16 @@
 from tkinter import * 
 from tkinter import ttk 
 from tkinter import messagebox
-from tkcalendar import DateEntry
+from mysql.connector import connection
 import db_connection
+import re
 
 # removing all grid elements from screen
 class Remove:
      def __init__(self, master):
           super(Remove, self).__init__()
           self.master = master
+          self.available_slot = 0
 
      def remove_all_widgets(self):
           for widgets in self.master.winfo_children():  # this is used only for grid system.
@@ -71,8 +73,9 @@ class MainWindow:
           cursor = connection.cursor()
           try:
                cursor.execute("SELECT * from users where username='{}'".format(self.__username))
-
-               if cursor.fetchone() == None:
+               data = cursor.fetchone()
+               print(data)
+               if data == None or data[2] != self.__password:
                     messagebox.showerror("Invalid Credentials", "Your credentials are invalid. Please try again.")
                     self.username_entry.delete(0, END)
                     self.password_entry.delete(0, END)
@@ -82,9 +85,10 @@ class MainWindow:
 
           except Exception as e:
                connection.rollback()
+               messagebox.showerror("Error", e, parent=self.master)
                print(e)
                return
-
+          
           print("Username", self.__username, "is logged in into the system..")
           Remove.remove_all_widgets(self.loginFrame)
           self.homePortal()
@@ -139,6 +143,9 @@ class MainWindow:
 
 
      def vehicle_entry(self):
+
+          self.availabel_slot = self.check_availabel_slot()
+
           self.bgcolor = "#66ffff"
           self.toplevel = Toplevel(self.master)
           self.toplevel.geometry("800x800")
@@ -152,27 +159,36 @@ class MainWindow:
           self.label = Label(self.toplevel, text="First Name", bg=self.bgcolor, font=self.font)
           self.label.grid(row=1, column=0, padx=(100,20), pady=10)
 
-          self.fnameEntry = Entry(self.toplevel, font=self.font)
+          self.fnameEntry = Entry(self.toplevel, font="verdana 12")
           self.fnameEntry.grid(row=1, column=1, padx=10, pady=10)
 
           self.label = Label(self.toplevel, text="Last Name", bg=self.bgcolor, font=self.font)
           self.label.grid(row=2, column=0, padx=(100,20), pady=10)
 
-          self.lnameEntry = Entry(self.toplevel, font=self.font)
+          self.lnameEntry = Entry(self.toplevel, font="verdana 12")
           self.lnameEntry.grid(row=2, column=1, padx=10, pady=10)
 
           self.label = Label(self.toplevel, text="Vehicle Number", bg=self.bgcolor, font=self.font)
           self.label.grid(row=3, column=0, padx=(100,20), pady=10)
 
-          self.addrEntry = Entry(self.toplevel, font=self.font)
-          self.addrEntry.grid(row=3, column=1, padx=10, pady=10)
+          self.velicle_num_Entry = Entry(self.toplevel, font="verdana 12")
+          self.velicle_num_Entry.grid(row=3, column=1, padx=10, pady=10)
 
           self.label = Label(self.toplevel, text="Contact No", bg=self.bgcolor, font=self.font)
           self.label.grid(row=5, column=0, padx=(100,20), pady=10)
 
-          self.telnumEntry = Entry(self.toplevel, font=self.font)
+          self.telnumEntry = Entry(self.toplevel, font="verdana 12")
           self.telnumEntry.grid(row=5, column=1, padx=10, pady=10)
 
+          self.label = Label(self.toplevel, text="Slot", bg=self.bgcolor, font=self.font)
+          self.label.grid(row=6, column=0, padx=(100,20), pady=10)
+
+          if self.available_slot > 0:
+               self.label = Label(self.toplevel, text= self.available_slot, bg=self.bgcolor, font="verdana 12")
+               self.label.grid(row=6, column=1, padx=(100,20), pady=10)
+          else:
+               self.label = Label(self.toplevel, text="No slot is available." , bg=self.bgcolor, font="verdana 12")
+               self.label.grid(row=6, column=1, padx=(100,20), pady=10)
 
           self.label = Label(self.toplevel, text="Gender", bg=self.bgcolor, font=self.font)
           self.label.grid(row=7, column=0, padx=(100,20), pady=10)
@@ -182,18 +198,104 @@ class MainWindow:
           self.gender.set(self.genderOptions[0])
 
           self.genderEntry = OptionMenu(self.toplevel, self.gender, *self.genderOptions)
-          self.genderEntry.config(font=self.font)
+          self.genderEntry.config(font="verdana 12")
           self.genderEntry.grid(row=7, column=1, padx=10, pady=10)
 
-          self.save = Button(self.toplevel, text="Save", bg="#0000cc", cursor="hand2", fg="#fff", font=self.font,width=20, command=lambda: self.validateForm())
+          self.save = Button(self.toplevel, text="Save", bg="#0000cc", cursor="hand2", fg="#fff", font="verdana 12", width=20, command=lambda: self.validateForm())
           self.save.grid(row=11, column=0, padx=(50, 0), pady=(30,0))
 
-          self.reset = Button(self.toplevel, text="Reset", bg="#ff6600", cursor="hand2", font=self.font,width=20, command=lambda: self.resetForm())
+          self.reset = Button(self.toplevel, text="Reset", bg="#ff6600", cursor="hand2", font="verdana 12", width=20, command=lambda: self.resetForm())
           self.reset.grid(row=11, column=1, padx=(10, 0), pady=(30, 0))
-
-          pass  
+          pass 
 
      
+     def validateForm(self):
+          if self.fnameEntry.get() == '':
+               messagebox.showerror('Error', "Please enter your first name.", parent=self.toplevel)
+               self.fnameEntry.focus()
+               return
+
+          if self.lnameEntry.get() == '':
+               messagebox.showerror('Error', "Please enter your Last name.", parent=self.toplevel)
+               self.lnameEntry.focus()
+               return
+
+          if self.velicle_num_Entry.get() == '':
+               messagebox.showerror('Error', "Please enter your address.", parent=self.toplevel)
+               self.addrEntry.focus()
+               return
+
+          if self.telnumEntry.get() == '':
+               messagebox.showerror('Error', "Please enter your phone number.", parent=self.toplevel)
+               self.telnumEntry.focus()
+               return
+
+          if not self.valid_tel_num():
+               messagebox.showerror('Error', "Please enter valid Number", parent=self.toplevel)
+               self.telnumEntry.focus()
+               return
+
+          self.save_form_data()
+          pass
+
+
+     def check_availabel_slot(self):
+          connection = db_connection.connect()
+          cursor = connection.cursor()
+          try:
+               cursor.execute("select * from slot where booked_status='Available'")
+               data = cursor.fetchall()
+               if data == None or len(data) <= 0:
+                    messagebox.showerror("Error", "No slots available right now. Please try after some time.")
+                    return 0
+               else:
+                    return int(data[0][0])
+
+          except Exception as e:
+               connection.rollback()
+               print(e)
+          
+          return 0
+
+
+     def save_form_data(self):
+          connection = db_connection.connect()
+          cursor = connection.cursor()
+
+          try:
+               cursor.execute("insert into vehicle_details(full_name, vehicle_number, phone_number, gender, slot) values ('{}', '{}', {}, '{}', '{}')".format((self.fnameEntry.get()+" "+ self.lnameEntry.get()), self.velicle_num_Entry.get(), int(self.telnumEntry.get()), self.gender.get(), self.available_slot))
+               connection.commit()
+
+               messagebox.showinfo("Successful", "Slot Booked successfully..", parent=self.toplevel)
+
+          except Exception as e:
+               connection.rollback()
+               messagebox.showerror("Error", e, parent=self.toplevel)
+               print(e)
+
+          connection.close()
+          self.resetForm()
+
+
+     def valid_tel_num(self):
+          if len(re.findall("[a-bA-Z]", self.telnumEntry.get())) > 0:
+               return False
+
+          if len(self.telnumEntry.get()) != 10:
+               return False
+          return True
+
+
+     def resetForm(self):
+          self.availabel_slot = self.check_availabel_slot()
+          self.fnameEntry.delete(0, END)
+          self.lnameEntry.delete(0, END)
+          self.velicle_num_Entry.delete(0, END)
+          self.telnumEntry.delete(0, END)
+          self.gender.set("--Select--")
+          self.fnameEntry.focus()
+          pass
+
 
      def logout(self):
           Remove.remove_all_widgets(self.navFrame)
