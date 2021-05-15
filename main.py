@@ -1,5 +1,6 @@
 from tkinter import *  
 from tkinter import messagebox 
+import db_connection
 
 # removing all grid elements from screen
 class Remove:
@@ -62,8 +63,44 @@ class MainWindow:
                self.password_entry.focus()
                return
           
+          connection = db_connection.connect()
+
+          cursor = connection.cursor()
+          cursor.execute("SELECT * from users where username='{}'".format(self.__username))
+
+          if cursor.fetchone() == None:
+               messagebox.showerror("Invalid Credentials", "Your credentials are invalid. Please try again.")
+               self.username_entry.delete(0, END)
+               self.password_entry.delete(0, END)
+               self.username_entry.focus()
+               return
+
           print("Username", self.__username, "is logged in into the system..")
           Remove.remove_all_widgets(self.loginFrame)
+          self.homePortal()
+
+
+     def homePortal(self):
+          heading = Label(self.master, text="Vehicle Parking Management System", font="verdana 22 bold", bg=self.color)
+          heading.grid(row=0, column=0, padx=(300,0), pady=20)
+
+          self.navFrame = LabelFrame(self.master, text="")
+          self.navFrame.grid(row=1, column=0, padx=(300,0), pady=50)
+
+          self.vehicle_entry_portal_btn = Button(self.navFrame, text="Vehicle Entry", font=self.font , bg="#ff55ff", fg="#fff")
+          self.vehicle_entry_portal_btn.grid(row=0, column=0, padx=20, pady=20)
+
+          self.veiw_slot_portal_btn = Button(self.navFrame, text="View Available Slots", font=self.font , bg="#ff55ff", fg="#fff")
+          self.veiw_slot_portal_btn.grid(row=0, column=1, padx=20, pady=20)
+
+          self.logout_btn = Button(self.navFrame, text="Logout", bg="#ff55ff", font=self.font , fg="#fff", command= lambda: self.logout())
+          self.logout_btn.grid(row=0, column=2, padx=20, pady=20)
+
+
+     def logout(self):
+          Remove.remove_all_widgets(self.navFrame)
+          self.loginWindow()
+
 
 
 if __name__ == '__main__':
