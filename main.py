@@ -1,5 +1,7 @@
-from tkinter import *  
-from tkinter import messagebox 
+from tkinter import * 
+from tkinter import ttk 
+from tkinter import messagebox
+from tkcalendar import DateEntry
 import db_connection
 
 # removing all grid elements from screen
@@ -40,13 +42,14 @@ class MainWindow:
           self.password_label = Label(self.loginFrame, text="Password", font=self.font, bg="#f2f2f2")
           self.password_label.grid(row=1, column=0, padx=30, pady=20)
 
-          self.password_entry = Entry(self.loginFrame, textvariable=self.__password, width=20, font="verdana 12")
+          self.password_entry = Entry(self.loginFrame, textvariable=self.__password, width=20, show="*", font="verdana 12")
           self.password_entry.grid(row=1, column=1, padx=(10,30), pady=20, ipady=3)
 
           self.login_button = Button(self.loginFrame, text="Login", width="20", font="verdana 12 bold", bg="#00a5aa", fg="#fff", cursor="hand2", command=lambda: self.authenticate())
           self.login_button.grid(row=2, column=0, columnspan=2, padx=30, pady=30)
 
           pass
+
 
      def authenticate(self):
           self.__username = self.username_entry.get()
@@ -66,13 +69,20 @@ class MainWindow:
           connection = db_connection.connect()
 
           cursor = connection.cursor()
-          cursor.execute("SELECT * from users where username='{}'".format(self.__username))
+          try:
+               cursor.execute("SELECT * from users where username='{}'".format(self.__username))
 
-          if cursor.fetchone() == None:
-               messagebox.showerror("Invalid Credentials", "Your credentials are invalid. Please try again.")
-               self.username_entry.delete(0, END)
-               self.password_entry.delete(0, END)
-               self.username_entry.focus()
+               if cursor.fetchone() == None:
+                    messagebox.showerror("Invalid Credentials", "Your credentials are invalid. Please try again.")
+                    self.username_entry.delete(0, END)
+                    self.password_entry.delete(0, END)
+                    self.username_entry.focus()
+                    return
+               connection.close()
+
+          except Exception as e:
+               connection.rollback()
+               print(e)
                return
 
           print("Username", self.__username, "is logged in into the system..")
@@ -82,12 +92,12 @@ class MainWindow:
 
      def homePortal(self):
           heading = Label(self.master, text="Vehicle Parking Management System", font="verdana 22 bold", bg=self.color)
-          heading.grid(row=0, column=0, padx=(300,0), pady=20)
+          heading.grid(row=0, column=0, padx=(250,0), pady=20)
 
           self.navFrame = LabelFrame(self.master, text="")
-          self.navFrame.grid(row=1, column=0, padx=(300,0), pady=50)
+          self.navFrame.grid(row=1, column=0, padx=(250,0), pady=50)
 
-          self.vehicle_entry_portal_btn = Button(self.navFrame, text="Vehicle Entry", font=self.font , bg="#ff55ff", fg="#fff")
+          self.vehicle_entry_portal_btn = Button(self.navFrame, text="Vehicle Entry", font=self.font , bg="#ff55ff", fg="#fff", command=lambda: self.vehicle_entry())
           self.vehicle_entry_portal_btn.grid(row=0, column=0, padx=20, pady=20)
 
           self.veiw_slot_portal_btn = Button(self.navFrame, text="View Available Slots", font=self.font , bg="#ff55ff", fg="#fff")
@@ -95,7 +105,95 @@ class MainWindow:
 
           self.logout_btn = Button(self.navFrame, text="Logout", bg="#ff55ff", font=self.font , fg="#fff", command= lambda: self.logout())
           self.logout_btn.grid(row=0, column=2, padx=20, pady=20)
+          
+          self.tableFrame = LabelFrame(self.master, text="", bg="#5a9bad")
+          self.tableFrame.grid(row=2, column=0, padx=(200, 0), sticky="nsew")
 
+          self.heading = Label(self.tableFrame, text="Today's Records", bg="#5a9bad", fg="#fff", font="Verdana 14 bold")
+          self.heading.grid(row=0, column=0, pady=10, columnspan=2)
+
+          self.tv = ttk.Treeview(self.tableFrame, style="mystyle.Treeview", columns=(1, 2, 3, 4, 5), show="headings",height=25, selectmode="none")
+          self.tv.grid(row=1, column=0)
+
+          # changing font size of heading and body of tree view
+          self.style = ttk.Style()
+          self.style.configure('Treeview.Heading', font=("verdana bold", 12))
+          self.style.configure("mystyle.Treeview", highlightthickness=1, bd=1, font=('verdana', 11))  # Modify the font of the body
+          self.style.layout("mystyle.Treeview", [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
+
+          self.verscrlbar = ttk.Scrollbar(self.tableFrame, orient="vertical", command=self.tv.yview)
+          self.verscrlbar.grid(row=1, column=1, rowspan=30, sticky='ns')
+          self.tv.configure(yscrollcommand=self.verscrlbar.set)
+
+          self.tv.column(1, width=100, anchor='c')
+          self.tv.column(2, width=400)
+          self.tv.column(3, width=200, anchor='c')
+          self.tv.column(4, width=250, anchor='c')
+          self.tv.column(5, width=150, anchor='c')
+
+          self.tv.heading(1, text="ID")
+          self.tv.heading(2, text="Owner's Name")
+          self.tv.heading(3, text="Car Number")
+          self.tv.heading(4, text="Date")
+          self.tv.heading(5, text="Booked Slot")
+
+
+     def vehicle_entry(self):
+          self.bgcolor = "#66ffff"
+          self.toplevel = Toplevel(self.master)
+          self.toplevel.geometry("800x800")
+          self.toplevel.resizable(height=0, width=0)
+          self.toplevel.title("Vehicle Entry")
+          self.toplevel.config(bg=self.bgcolor)
+
+          self.heading = Label(self.toplevel, text="Vehicle Entry Form", bg=self.bgcolor, font="Verdana 20 bold")
+          self.heading.grid(row=0, column=0, columnspan=3, padx=(100,0), pady=30, sticky='nesw')
+
+          self.label = Label(self.toplevel, text="First Name", bg=self.bgcolor, font=self.font)
+          self.label.grid(row=1, column=0, padx=(100,20), pady=10)
+
+          self.fnameEntry = Entry(self.toplevel, font=self.font)
+          self.fnameEntry.grid(row=1, column=1, padx=10, pady=10)
+
+          self.label = Label(self.toplevel, text="Last Name", bg=self.bgcolor, font=self.font)
+          self.label.grid(row=2, column=0, padx=(100,20), pady=10)
+
+          self.lnameEntry = Entry(self.toplevel, font=self.font)
+          self.lnameEntry.grid(row=2, column=1, padx=10, pady=10)
+
+          self.label = Label(self.toplevel, text="Vehicle Number", bg=self.bgcolor, font=self.font)
+          self.label.grid(row=3, column=0, padx=(100,20), pady=10)
+
+          self.addrEntry = Entry(self.toplevel, font=self.font)
+          self.addrEntry.grid(row=3, column=1, padx=10, pady=10)
+
+          self.label = Label(self.toplevel, text="Contact No", bg=self.bgcolor, font=self.font)
+          self.label.grid(row=5, column=0, padx=(100,20), pady=10)
+
+          self.telnumEntry = Entry(self.toplevel, font=self.font)
+          self.telnumEntry.grid(row=5, column=1, padx=10, pady=10)
+
+
+          self.label = Label(self.toplevel, text="Gender", bg=self.bgcolor, font=self.font)
+          self.label.grid(row=7, column=0, padx=(100,20), pady=10)
+
+          self.genderOptions = ['Male', 'Female']
+          self.gender = StringVar()
+          self.gender.set(self.genderOptions[0])
+
+          self.genderEntry = OptionMenu(self.toplevel, self.gender, *self.genderOptions)
+          self.genderEntry.config(font=self.font)
+          self.genderEntry.grid(row=7, column=1, padx=10, pady=10)
+
+          self.save = Button(self.toplevel, text="Save", bg="#0000cc", cursor="hand2", fg="#fff", font=self.font,width=20, command=lambda: self.validateForm())
+          self.save.grid(row=11, column=0, padx=(50, 0), pady=(30,0))
+
+          self.reset = Button(self.toplevel, text="Reset", bg="#ff6600", cursor="hand2", font=self.font,width=20, command=lambda: self.resetForm())
+          self.reset.grid(row=11, column=1, padx=(10, 0), pady=(30, 0))
+
+          pass  
+
+     
 
      def logout(self):
           Remove.remove_all_widgets(self.navFrame)
@@ -105,9 +203,10 @@ class MainWindow:
 
 if __name__ == '__main__':
      root = Tk()
-     root.geometry("1300x800")
+     root.geometry("1500x900")
      root.title("Vehicle Parking Management System")
      root.config(background="yellow")
+     root.resizable(height=0, width=0)
 
      main_obj = MainWindow(root)
      main_obj.loginWindow()
