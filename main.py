@@ -104,11 +104,14 @@ class MainWindow:
           self.vehicle_entry_portal_btn = Button(self.navFrame, text="Vehicle Entry", font=self.font , bg="#ff55ff", fg="#fff", command=lambda: self.vehicle_entry())
           self.vehicle_entry_portal_btn.grid(row=0, column=0, padx=20, pady=20)
 
-          self.veiw_slot_portal_btn = Button(self.navFrame, text="View Available Slots", font=self.font , bg="#ff55ff", fg="#fff")
+          self.veiw_slot_portal_btn = Button(self.navFrame, text="View Available Slots", font=self.font , bg="#ff55ff", fg="#fff", command=lambda: self.view_available_slots())
           self.veiw_slot_portal_btn.grid(row=0, column=1, padx=20, pady=20)
 
+          self.free_slot_btn = Button(self.navFrame, text="Free Slot", font=self.font , bg="#ff55ff", fg="#fff", command=lambda: self.view_available_slots())
+          self.free_slot_btn.grid(row=0, column=2, padx=20, pady=20)
+
           self.logout_btn = Button(self.navFrame, text="Logout", bg="#ff55ff", font=self.font , fg="#fff", command= lambda: self.logout())
-          self.logout_btn.grid(row=0, column=2, padx=20, pady=20)
+          self.logout_btn.grid(row=0, column=3, padx=20, pady=20)
           
           self.tableFrame = LabelFrame(self.master, text="", bg="#5a9bad")
           self.tableFrame.grid(row=2, column=0, padx=(200, 0), sticky="nsew")
@@ -144,7 +147,7 @@ class MainWindow:
 
      def vehicle_entry(self):
 
-          self.availabel_slot = self.check_availabel_slot()
+          self.availabel_slot = self.check_availabel_slot()[0][0]
 
           self.bgcolor = "#66ffff"
           self.toplevel = Toplevel(self.master)
@@ -183,8 +186,8 @@ class MainWindow:
           self.label = Label(self.toplevel, text="Slot", bg=self.bgcolor, font=self.font)
           self.label.grid(row=6, column=0, padx=(100,20), pady=10)
 
-          if self.available_slot > 0:
-               self.label = Label(self.toplevel, text= self.available_slot, bg=self.bgcolor, font="verdana 12")
+          if self.availabel_slot > 0:
+               self.label = Label(self.toplevel, text= self.availabel_slot, bg=self.bgcolor, font="verdana 12")
                self.label.grid(row=6, column=1, padx=(100,20), pady=10)
           else:
                self.label = Label(self.toplevel, text="No slot is available." , bg=self.bgcolor, font="verdana 12")
@@ -249,7 +252,7 @@ class MainWindow:
                     messagebox.showerror("Error", "No slots available right now. Please try after some time.")
                     return 0
                else:
-                    return int(data[0][0])
+                    return data
 
           except Exception as e:
                connection.rollback()
@@ -263,9 +266,12 @@ class MainWindow:
           cursor = connection.cursor()
 
           try:
-               cursor.execute("insert into vehicle_details(full_name, vehicle_number, phone_number, gender, slot) values ('{}', '{}', {}, '{}', '{}')".format((self.fnameEntry.get()+" "+ self.lnameEntry.get()), self.velicle_num_Entry.get(), int(self.telnumEntry.get()), self.gender.get(), self.available_slot))
+               cursor.execute("insert into vehicle_details(full_name, vehicle_number, phone_number, gender, slot) values ('{}', '{}', {}, '{}', '{}')".format((self.fnameEntry.get()+" "+ self.lnameEntry.get()), self.velicle_num_Entry.get(), int(self.telnumEntry.get()), self.gender.get(), self.availabel_slot))
                connection.commit()
 
+               cursor.execute("update table slots SET booked_stauts='Booked' where slot_number={}".format(self.availabel_slot))
+               connection.commit()
+               
                messagebox.showinfo("Successful", "Slot Booked successfully..", parent=self.toplevel)
 
           except Exception as e:
@@ -295,6 +301,36 @@ class MainWindow:
           self.gender.set("--Select--")
           self.fnameEntry.focus()
           pass
+     
+
+     def view_available_slots(self):
+          self.toplevel_view_slot = Toplevel(self.master)
+          self.toplevel_view_slot.geometry("800x800")
+          self.toplevel_view_slot.resizable(height=0, width=0)
+          self.toplevel_view_slot.title("View Available Slots")
+          self.toplevel_view_slot.config(bg="#f2f2f2")
+
+          heading = Label(self.toplevel_view_slot, text="Available Slots", bg="#f2f2f2", font="verdana 20 bold")
+          heading.grid(row=0, column=2, columnspan=3, pady=50, padx=10)
+
+          get_color = lambda slot: "#00ff00" if self.search_in_available_slot(slot) else "#ff0000"
+
+          for i in range(1,21, 2):
+
+               self.label = Label(self.toplevel_view_slot, text="Slot "+str(i), bg= get_color(i))
+               self.label.grid(row=i, column=0, padx=(200,10) , pady=10, ipadx=10, ipady=10)
+
+               self.label = Label(self.toplevel_view_slot, text="Slot "+str(i+1), bg= get_color(i+1))
+               self.label.grid(row=i, column=3, padx=(100,10) , pady=10, ipadx=10, ipady=10)
+
+
+     def search_in_available_slot(self, slot):
+          availabel_slots = self.check_availabel_slot()
+          for j in availabel_slots:
+               if j[0] == slot and j[1] == "Available":
+                    return True
+          return False
+          
 
 
      def logout(self):
