@@ -4,13 +4,14 @@ from tkinter import messagebox
 from mysql.connector import connection
 import db_connection
 import re
+from datetime import date
+import time
 
 # removing all grid elements from screen
 class Remove:
      def __init__(self, master):
           super(Remove, self).__init__()
           self.master = master
-          self.available_slot = 0
 
      def remove_all_widgets(self):
           for widgets in self.master.winfo_children():  # this is used only for grid system.
@@ -26,6 +27,7 @@ class MainWindow:
           self.color = "yellow"
           self.__username = ""
           self.__password = ""
+          self.available_slot = 0
 
      def loginWindow(self):
           heading = Label(self.master, text="Vehicle Parking Management System", font="verdana 22 bold", bg=self.color)
@@ -95,6 +97,34 @@ class MainWindow:
 
 
      def homePortal(self):
+          self.vehicle_records = list()
+          
+          connection = db_connection.connect()
+          cursor = connection.cursor()
+
+          try:
+               cursor.execute("select * from vehicle_details where DATE(time_stamp)='{}'".format(date.today()))
+               data = cursor.fetchall()
+               
+               if len(data) > 0:
+                    for i in data:
+                         temp = []
+                         temp.append(i[0])
+                         temp.append(i[1])
+                         temp.append(i[2])
+                         todays_date = str(i[6]).split(' ')[0]
+                         temp.append(todays_date)
+                         temp.append(i[5])
+                         self.vehicle_records.append(temp)
+
+          except Exception as e:
+               connection.rollback()
+               messagebox.showerror("Error", e, parent=self.master)
+               print(e)
+
+          connection.close()
+
+
           heading = Label(self.master, text="Vehicle Parking Management System", font="verdana 22 bold", bg=self.color)
           heading.grid(row=0, column=0, padx=(250,0), pady=20)
 
@@ -112,6 +142,9 @@ class MainWindow:
 
           self.logout_btn = Button(self.navFrame, text="Logout", bg="#ff55ff", font=self.font , fg="#fff", command= lambda: self.logout())
           self.logout_btn.grid(row=0, column=3, padx=20, pady=20)
+
+          self.refresh_btn = Button(self.navFrame, text="Refresh", bg="#ff55ff", font=self.font , fg="#fff", command= lambda: self.homePortal())
+          self.refresh_btn.grid(row=0, column=3, padx=20, pady=20)
           
           self.tableFrame = LabelFrame(self.master, text="", bg="#5a9bad")
           self.tableFrame.grid(row=2, column=0, padx=(200, 0), sticky="nsew")
@@ -144,6 +177,9 @@ class MainWindow:
           self.tv.heading(4, text="Date")
           self.tv.heading(5, text="Booked Slot")
 
+          for i in self.vehicle_records:
+               self.tv.insert("", 'end', values= i)
+
 
      def free_slot(self):
           self.toplevel_free_slot = Toplevel(self.master)
@@ -166,7 +202,7 @@ class MainWindow:
           self.slot_entry = Entry(self.toplevel_free_slot, font="verdana 12")
           self.slot_entry.pack(padx=20, pady=10)
 
-          self.btn = Button(self.toplevel_free_slot, text="Free Slot", width=40,font="verdana 12 bold", bg="#b0a4c2", fg="#000", command= lambda: self.update_slot_to_free())
+          self.btn = Button(self.toplevel_free_slot, text="Free Slot", width=40,font="verdana 12 bold", cursor="hand2", bg="#b0a4c2", fg="#000", command= lambda: self.update_slot_to_free())
           self.btn.pack(padx=20, pady=30)
           pass
 
@@ -175,19 +211,18 @@ class MainWindow:
           cursor = connection.cursor()
 
           try:
-               cursor.execute("select slot from vehicle_details where vehicle_number='{}'".format(self.vehicle_entry.get()))
-               slot = cursor.fetchone()[0]
-               print("slot",slot)
-               if slot != int(self.slot_entry.get()):
+               cursor.execute("select slot from vehicle_details where vehicle_number='{}'".format(self.vehical_entry.get()))
+               slot = cursor.fetchone()
+               if slot == None or slot[0] != int(self.slot_entry.get()):
                     messagebox.showerror("Error", "Sorry, you have not booked this slot.", parent=self.toplevel_free_slot)
                     return
 
-               cursor.execute("update slots SET booked_stauts='Available' where slot_number={}".format(self.slot_entry.get()))
+               cursor.execute("update slot SET booked_status='Available' where slot_number={}".format(self.slot_entry.get()))
                connection.commit()
 
                self.vehical_entry.delete(0, END)
                self.slot_entry.delete(0, END)
-               
+
                messagebox.showinfo("Successful", "Slot is free now..", parent=self.toplevel_free_slot)
 
 
@@ -324,7 +359,7 @@ class MainWindow:
                cursor.execute("insert into vehicle_details(full_name, vehicle_number, phone_number, gender, slot) values ('{}', '{}', {}, '{}', '{}')".format((self.fnameEntry.get()+" "+ self.lnameEntry.get()), self.velicle_num_Entry.get(), int(self.telnumEntry.get()), self.gender.get(), self.availabel_slot))
                connection.commit()
 
-               cursor.execute("update slots SET booked_stauts='Booked' where slot_number={}".format(self.availabel_slot))
+               cursor.execute("update slot SET booked_status='Booked' where slot_number={}".format(self.availabel_slot))
                connection.commit()
 
                messagebox.showinfo("Successful", "Slot Booked successfully..", parent=self.toplevel)
@@ -360,23 +395,23 @@ class MainWindow:
 
      def view_available_slots(self):
           self.toplevel_view_slot = Toplevel(self.master)
-          self.toplevel_view_slot.geometry("800x800")
+          self.toplevel_view_slot.geometry("850x820")
           self.toplevel_view_slot.resizable(height=0, width=0)
           self.toplevel_view_slot.title("View Available Slots")
           self.toplevel_view_slot.config(bg="#f2f2f2")
 
           heading = Label(self.toplevel_view_slot, text="Available Slots", bg="#f2f2f2", font="verdana 20 bold")
-          heading.grid(row=0, column=2, columnspan=3, pady=50, padx=10)
+          heading.grid(row=0, column=2, pady=20, padx=(30,10))
 
           get_color = lambda slot: "#00ff00" if self.search_in_available_slot(slot) else "#ff0000"
 
           for i in range(1,21, 2):
 
-               self.label = Label(self.toplevel_view_slot, text="Slot "+str(i), bg= get_color(i))
-               self.label.grid(row=i, column=0, padx=(200,10) , pady=10, ipadx=10, ipady=10)
+               self.label = Label(self.toplevel_view_slot, text="Slot "+str(i), bg= get_color(i), font="verdana 12")
+               self.label.grid(row=i, column=0, padx=(100,10) , pady=10, ipadx=10, ipady=10)
 
-               self.label = Label(self.toplevel_view_slot, text="Slot "+str(i+1), bg= get_color(i+1))
-               self.label.grid(row=i, column=3, padx=(100,10) , pady=10, ipadx=10, ipady=10)
+               self.label = Label(self.toplevel_view_slot, text="Slot "+str(i+1), bg= get_color(i+1), font="verdana 12")
+               self.label.grid(row=i, column=3, padx=(50,10) , pady=10, ipadx=10, ipady=10)
 
 
      def search_in_available_slot(self, slot):
