@@ -107,7 +107,7 @@ class MainWindow:
           self.veiw_slot_portal_btn = Button(self.navFrame, text="View Available Slots", font=self.font , bg="#ff55ff", fg="#fff", command=lambda: self.view_available_slots())
           self.veiw_slot_portal_btn.grid(row=0, column=1, padx=20, pady=20)
 
-          self.free_slot_btn = Button(self.navFrame, text="Free Slot", font=self.font , bg="#ff55ff", fg="#fff", command=lambda: self.view_available_slots())
+          self.free_slot_btn = Button(self.navFrame, text="Free Slot", font=self.font , bg="#ff55ff", fg="#fff", command=lambda: self.free_slot())
           self.free_slot_btn.grid(row=0, column=2, padx=20, pady=20)
 
           self.logout_btn = Button(self.navFrame, text="Logout", bg="#ff55ff", font=self.font , fg="#fff", command= lambda: self.logout())
@@ -143,6 +143,61 @@ class MainWindow:
           self.tv.heading(3, text="Car Number")
           self.tv.heading(4, text="Date")
           self.tv.heading(5, text="Booked Slot")
+
+
+     def free_slot(self):
+          self.toplevel_free_slot = Toplevel(self.master)
+          self.toplevel_free_slot.geometry("800x400")
+          self.toplevel_free_slot.resizable(width=0, height=0)
+          self.toplevel_free_slot.title("Free slot Portal")
+
+          heading = Label(self.toplevel_free_slot, text="Free the slot", font="verdana 20 bold")
+          heading.pack()
+
+          self.label = Label(self.toplevel_free_slot, text="Enter vehicle Number", font="verdana 12 bold")
+          self.label.pack(pady=(50, 20))
+
+          self.vehical_entry = Entry(self.toplevel_free_slot, font="verdana 12")
+          self.vehical_entry.pack(padx=20, pady=10)
+
+          self.label = Label(self.toplevel_free_slot, text="Enter the slot", font="verdana 12 bold")
+          self.label.pack(pady=10)
+
+          self.slot_entry = Entry(self.toplevel_free_slot, font="verdana 12")
+          self.slot_entry.pack(padx=20, pady=10)
+
+          self.btn = Button(self.toplevel_free_slot, text="Free Slot", width=40,font="verdana 12 bold", bg="#b0a4c2", fg="#000", command= lambda: self.update_slot_to_free())
+          self.btn.pack(padx=20, pady=30)
+          pass
+
+     def update_slot_to_free(self):
+          connection = db_connection.connect()
+          cursor = connection.cursor()
+
+          try:
+               cursor.execute("select slot from vehicle_details where vehicle_number='{}'".format(self.vehicle_entry.get()))
+               slot = cursor.fetchone()[0]
+               print("slot",slot)
+               if slot != int(self.slot_entry.get()):
+                    messagebox.showerror("Error", "Sorry, you have not booked this slot.", parent=self.toplevel_free_slot)
+                    return
+
+               cursor.execute("update slots SET booked_stauts='Available' where slot_number={}".format(self.slot_entry.get()))
+               connection.commit()
+
+               self.vehical_entry.delete(0, END)
+               self.slot_entry.delete(0, END)
+               
+               messagebox.showinfo("Successful", "Slot is free now..", parent=self.toplevel_free_slot)
+
+
+          except Exception as e:
+               connection.rollback()
+               messagebox.showerror("Error", e, parent=self.toplevel_free_slot)
+               print(e)
+
+          connection.close()
+          
 
 
      def vehicle_entry(self):
@@ -269,9 +324,9 @@ class MainWindow:
                cursor.execute("insert into vehicle_details(full_name, vehicle_number, phone_number, gender, slot) values ('{}', '{}', {}, '{}', '{}')".format((self.fnameEntry.get()+" "+ self.lnameEntry.get()), self.velicle_num_Entry.get(), int(self.telnumEntry.get()), self.gender.get(), self.availabel_slot))
                connection.commit()
 
-               cursor.execute("update table slots SET booked_stauts='Booked' where slot_number={}".format(self.availabel_slot))
+               cursor.execute("update slots SET booked_stauts='Booked' where slot_number={}".format(self.availabel_slot))
                connection.commit()
-               
+
                messagebox.showinfo("Successful", "Slot Booked successfully..", parent=self.toplevel)
 
           except Exception as e:
